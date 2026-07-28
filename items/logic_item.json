@@ -1,10 +1,17 @@
 [
     {
-        "name": "Bubbleflower (logic)",
+        "name": "Bluetoad (logic)",
         "type": "toggle",
         "allow_disabled": true,
         "img": "images/various/fake.png",
-        "codes": "bubbleflower"
+        "codes": "bluetoad"
+    },
+    {
+        "name": "Daisy (logic)",
+        "type": "toggle",
+        "allow_disabled": true,
+        "img": "images/various/fake.png",
+        "codes": "daisy"
     },
     {
         "name": "Drillmushroom (logic)",
@@ -12,5 +19,40 @@
         "allow_disabled": true,
         "img": "images/various/fake.png",
         "codes": "drillmushroom"
+    },
+    {
+        "name": "Rbutton (logic)",
+        "type": "consumable",
+        "allow_disabled": true,
+        "img": "images/various/fake.png",
+        "codes": "rbutton"
+    },
+    {
+        "name": "Toadette (logic)",
+        "type": "toggle",
+        "allow_disabled": true,
+        "img": "images/various/fake.png",
+        "codes": "toadette"
+    },
+    {
+        "name": "Up (logic)",
+        "type": "consumable",
+        "allow_disabled": true,
+        "img": "images/various/fake.png",
+        "codes": "up"
+    },
+    {
+        "name": "Ybutton (logic)",
+        "type": "consumable",
+        "allow_disabled": true,
+        "img": "images/various/fake.png",
+        "codes": "ybutton"
+    },
+    {
+        "name": "Yellowtoad (logic)",
+        "type": "toggle",
+        "allow_disabled": true,
+        "img": "images/various/fake.png",
+        "codes": "yellowtoad"
     }
 ]
