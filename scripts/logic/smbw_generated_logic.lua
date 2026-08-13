@@ -326,7 +326,7 @@ local function R_Post_Badge()
     local hit = RCACHE["R_Post_Badge"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(ALL(HAS("ybutton", 14, 14), HAS("w1wonderseed", 14, 14), HAS("floatinghighjumpbadge", 10, 10), HAS("springfeetbadge", 15, 15), HAS("invisibilitybadge", 11, 11), HAS("w5royalseed", 25, 25), HAS("up", 15, 15), HAS("rbutton", 16, 16), smbw_royal(6)), R_Special_End()) end
+    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(ALL(HAS("ybutton", 35, 35), HAS("w1wonderseed", 30, 30), HAS("floatinghighjumpbadge", 20, 20), HAS("springfeetbadge", 36, 36), HAS("invisibilitybadge", 21, 21), HAS("w5royalseed", 30, 30), HAS("up", 34, 34), HAS("rbutton", 19, 19), smbw_royal(6)), R_Special_End()) end
     RCACHE["R_Post_Badge"] = {gen = GEN, v = v}
     return v
 end
@@ -882,11 +882,11 @@ LOC["14887805045"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("w2wondersee
 LOC["14887805046"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("w2wonderseed"), smbw_cat(1, "daisy", "yellowtoad", "bluetoad", "toadette"))) end
 LOC["14887805047"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("w2wonderseed"), smbw_cat(1, "daisy", "yellowtoad", "bluetoad", "toadette"))) end
 LOC["14887805048"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("w2wonderseed"), smbw_cat(1, "daisy", "yellowtoad", "bluetoad", "toadette"))) end
-LOC["14887805049"] = function() return ALL(R_W6_25_Seeds(), ALL(HAS("fastdashbadge"), ANY(HAS("timedhighjumpbadge"), HAS("w6royalseed")))) end
-LOC["14887805050"] = function() return ALL(R_W6_25_Seeds(), ALL(HAS("fastdashbadge"), ANY(HAS("timedhighjumpbadge"), HAS("w6royalseed")))) end
-LOC["14887805051"] = function() return ALL(R_W6_25_Seeds(), ALL(HAS("fastdashbadge"), ANY(HAS("timedhighjumpbadge"), HAS("w6royalseed")))) end
-LOC["14887805052"] = function() return ALL(R_W6_25_Seeds(), ALL(HAS("fastdashbadge"), ANY(HAS("timedhighjumpbadge"), HAS("w6royalseed")))) end
-LOC["14887805053"] = function() return ALL(R_W6_25_Seeds(), ALL(HAS("fastdashbadge"), ANY(HAS("timedhighjumpbadge"), HAS("w6royalseed")))) end
+LOC["14887805049"] = function() return ALL(R_W6_25_Seeds(), ALL(ANY(HAS("fastdashbadge"), smbw_cat(1, "daisy", "yellowtoad", "bluetoad", "toadette")), ANY(HAS("timedhighjumpbadge"), HAS("w6royalseed")))) end
+LOC["14887805050"] = function() return ALL(R_W6_25_Seeds(), ALL(ANY(HAS("fastdashbadge"), smbw_cat(1, "daisy", "yellowtoad", "bluetoad", "toadette")), ANY(HAS("timedhighjumpbadge"), HAS("w6royalseed")))) end
+LOC["14887805051"] = function() return ALL(R_W6_25_Seeds(), ALL(ANY(HAS("fastdashbadge"), smbw_cat(1, "daisy", "yellowtoad", "bluetoad", "toadette")), ANY(HAS("timedhighjumpbadge"), HAS("w6royalseed")))) end
+LOC["14887805052"] = function() return ALL(R_W6_25_Seeds(), ALL(ANY(HAS("fastdashbadge"), smbw_cat(1, "daisy", "yellowtoad", "bluetoad", "toadette")), ANY(HAS("timedhighjumpbadge"), HAS("w6royalseed")))) end
+LOC["14887805053"] = function() return ALL(R_W6_25_Seeds(), ALL(ANY(HAS("fastdashbadge"), smbw_cat(1, "daisy", "yellowtoad", "bluetoad", "toadette")), ANY(HAS("timedhighjumpbadge"), HAS("w6royalseed")))) end
 LOC["14887805054"] = function() return ALL(R_W6_25_Seeds(), HAS("drillmushroom")) end
 LOC["14887805055"] = function() return ALL(R_W6_25_Seeds(), HAS("drillmushroom")) end
 LOC["14887805056"] = function() return ALL(R_W6_25_Seeds(), HAS("drillmushroom")) end
