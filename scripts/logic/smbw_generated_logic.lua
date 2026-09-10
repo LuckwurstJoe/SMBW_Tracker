@@ -7,8 +7,9 @@ local RCACHE = {}
 ScriptHost:AddWatchForCode("smbw_logic_invalidate", "*", function() GEN = GEN + 1 end)
 
 -- Open-world mode: SLOT_DATA (set by autotracking/archipelago.lua) carries
--- open_world (0/1), open_world_active (list of active world numbers) and
--- palaces_required.  When off / unset, the standard linear-spine logic runs.
+-- open_world (0/1), open_world_active (list of active world numbers),
+-- palaces_required and open_world_unlock_items (0/1).  When off / unset,
+-- the standard linear-spine logic runs.
 local function SMBW_OPEN()
     return SLOT_DATA ~= nil and (SLOT_DATA.open_world == 1 or SLOT_DATA.open_world == true)
 end
@@ -18,6 +19,18 @@ local function smbw_world_active(n)
         if w == n then return true end
     end
     return false
+end
+-- Open-world world-unlock items (slot_data open_world_unlock_items):
+-- each active world needs its own "W<n> Unlock" AP item; exactly one is
+-- precollected at generation.  Returns true when the option is off (or the
+-- world has no mapped Unlock code) so older seeds behave as before.
+local SMBW_UNLOCK_CODE = {[1] = "w1unlock", [2] = "w2unlock", [3] = "w3unlock", [4] = "w4unlock", [5] = "w5unlock", [6] = "w6unlock"}
+function smbw_world_unlocked(n)
+    if not (SLOT_DATA and (SLOT_DATA.open_world_unlock_items == 1
+            or SLOT_DATA.open_world_unlock_items == true)) then return true end
+    local code = SMBW_UNLOCK_CODE[n]
+    if not code then return true end
+    return Tracker:ProviderCountForCode(code) > 0
 end
 -- Bowser gate in open-world: enough active-world Royal Seeds (palaces) cleared.
 function smbw_open_palaces()
@@ -43,40 +56,50 @@ function smbw_royal(n)
     return ACCESS_NONE
 end
 
+-- |@Category:n| gate -- sum of collected counts across the category's items.
+function smbw_cat(n, ...)
+    local c = 0
+    for _, code in ipairs({...}) do
+        c = c + Tracker:ProviderCountForCode(code)
+    end
+    if c >= tonumber(n) then return ACCESS_NORMAL end
+    return ACCESS_NONE
+end
+
 -- Region reachability (topologically ordered: parents before children).
 local function R_W1_Start()
     local hit = RCACHE["R_W1_Start"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ALL(smbw_world_active(1)) else v = ACCESS_NORMAL end
+    if SMBW_OPEN() then v = ALL(smbw_world_active(1), smbw_world_unlocked(1)) else v = ACCESS_NORMAL end
     RCACHE["R_W1_Start"] = {gen = GEN, v = v}
     return v
 end
 local function R_W1_3_Seeds()
     local hit = RCACHE["R_W1_3_Seeds"]
     if hit and hit.gen == GEN then return hit.v end
-    local v = ALL(ALL(HAS("w1wonderseed", 3, 3), HAS("parachutecapbadge")), R_W1_Start())
+    local v = ALL(HAS("w1wonderseed", 3, 3), R_W1_Start())
     RCACHE["R_W1_3_Seeds"] = {gen = GEN, v = v}
     return v
 end
 local function R_W1_10_Seeds()
     local hit = RCACHE["R_W1_10_Seeds"]
     if hit and hit.gen == GEN then return hit.v end
-    local v = ALL(ALL(HAS("w1wonderseed", 10, 10), HAS("autosupermushroombadge")), R_W1_3_Seeds())
+    local v = ALL(HAS("w1wonderseed", 10, 10), R_W1_3_Seeds())
     RCACHE["R_W1_10_Seeds"] = {gen = GEN, v = v}
     return v
 end
 local function R_W1_Post_Bulrush_Express()
     local hit = RCACHE["R_W1_Post_Bulrush_Express"]
     if hit and hit.gen == GEN then return hit.v end
-    local v = ALL(ANY(HAS("elephantfruit"), HAS("drillmushroom")), R_W1_10_Seeds())
+    local v = R_W1_10_Seeds()
     RCACHE["R_W1_Post_Bulrush_Express"] = {gen = GEN, v = v}
     return v
 end
 local function R_W1_Post_Jet_Run()
     local hit = RCACHE["R_W1_Post_Jet_Run"]
     if hit and hit.gen == GEN then return hit.v end
-    local v = R_W1_Post_Bulrush_Express()
+    local v = ALL(HAS("jetrunbadge"), R_W1_Post_Bulrush_Express())
     RCACHE["R_W1_Post_Jet_Run"] = {gen = GEN, v = v}
     return v
 end
@@ -107,7 +130,7 @@ local function R_PI_5_Seeds()
     local hit = RCACHE["R_PI_5_Seeds"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(HAS("petalisleswonderseed", 5, 5), R_PI_Pre_W2_2_Seeds()) end
+    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(ALL(HAS("w2wonderseed", 14, 14), HAS("petalisleswonderseed", 5, 5)), R_PI_Pre_W2_2_Seeds()) end
     RCACHE["R_PI_5_Seeds"] = {gen = GEN, v = v}
     return v
 end
@@ -115,7 +138,7 @@ local function R_PI_8_Seeds()
     local hit = RCACHE["R_PI_8_Seeds"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(HAS("petalisleswonderseed", 8, 8), R_PI_5_Seeds()) end
+    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(ALL(HAS("w3wonderseed", 10, 10), HAS("crouchinghighjumpbadge"), HAS("petalisleswonderseed", 8, 8)), R_PI_5_Seeds()) end
     RCACHE["R_PI_8_Seeds"] = {gen = GEN, v = v}
     return v
 end
@@ -123,7 +146,7 @@ local function R_W2_Start()
     local hit = RCACHE["R_W2_Start"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ALL(smbw_world_active(2)) else v = ALL(HAS("petalisleswonderseed", 5, 5), R_PI_Pre_W2_2_Seeds()) end
+    if SMBW_OPEN() then v = ALL(smbw_world_active(2), smbw_world_unlocked(2)) else v = ALL(HAS("petalisleswonderseed", 5, 5), R_PI_Pre_W2_2_Seeds()) end
     RCACHE["R_W2_Start"] = {gen = GEN, v = v}
     return v
 end
@@ -137,7 +160,7 @@ end
 local function R_W2_Post_Jump()
     local hit = RCACHE["R_W2_Post_Jump"]
     if hit and hit.gen == GEN then return hit.v end
-    local v = R_W2_4_Seeds()
+    local v = ALL(ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi")), R_W2_4_Seeds())
     RCACHE["R_W2_Post_Jump"] = {gen = GEN, v = v}
     return v
 end
@@ -167,7 +190,7 @@ local function R_W3_Start()
     local hit = RCACHE["R_W3_Start"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ALL(smbw_world_active(3)) else v = ALL(HAS("petalisleswonderseed", 8, 8), R_PI_Pre_W3()) end
+    if SMBW_OPEN() then v = ALL(smbw_world_active(3), smbw_world_unlocked(3)) else v = ALL(HAS("petalisleswonderseed", 8, 8), R_PI_Pre_W3()) end
     RCACHE["R_W3_Start"] = {gen = GEN, v = v}
     return v
 end
@@ -197,7 +220,7 @@ local function R_W4_Start()
     local hit = RCACHE["R_W4_Start"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ALL(smbw_world_active(4)) else v = ALL(HAS("petalisleswonderseed", 10, 10), R_PI_Pre_W4()) end
+    if SMBW_OPEN() then v = ALL(smbw_world_active(4), smbw_world_unlocked(4)) else v = ALL(HAS("petalisleswonderseed", 10, 10), R_PI_Pre_W4()) end
     RCACHE["R_W4_Start"] = {gen = GEN, v = v}
     return v
 end
@@ -227,7 +250,7 @@ local function R_W5_Start()
     local hit = RCACHE["R_W5_Start"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ALL(smbw_world_active(5)) else v = ALL(HAS("petalisleswonderseed", 12, 12), R_PI_Post_Airship()) end
+    if SMBW_OPEN() then v = ALL(smbw_world_active(5), smbw_world_unlocked(5)) else v = ALL(HAS("petalisleswonderseed", 12, 12), R_PI_Post_Airship()) end
     RCACHE["R_W5_Start"] = {gen = GEN, v = v}
     return v
 end
@@ -263,21 +286,28 @@ local function R_W6_Start()
     local hit = RCACHE["R_W6_Start"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ALL(smbw_world_active(6)) else v = ALL(HAS("petalisleswonderseed", 15, 15), R_PI_Post_Airship()) end
+    if SMBW_OPEN() then v = ALL(smbw_world_active(6), smbw_world_unlocked(6)) else v = ALL(HAS("petalisleswonderseed", 15, 15), R_PI_Post_Airship()) end
     RCACHE["R_W6_Start"] = {gen = GEN, v = v}
+    return v
+end
+local function R_W6_15_Seeds()
+    local hit = RCACHE["R_W6_15_Seeds"]
+    if hit and hit.gen == GEN then return hit.v end
+    local v = ALL(HAS("w6wonderseed", 15, 15), R_W6_Start())
+    RCACHE["R_W6_15_Seeds"] = {gen = GEN, v = v}
     return v
 end
 local function R_W6_25_Seeds()
     local hit = RCACHE["R_W6_25_Seeds"]
     if hit and hit.gen == GEN then return hit.v end
-    local v = ALL(HAS("w6wonderseed", 25, 25), R_W6_Start())
+    local v = ALL(HAS("w6wonderseed", 25, 25), R_W6_15_Seeds())
     RCACHE["R_W6_25_Seeds"] = {gen = GEN, v = v}
     return v
 end
 local function R_W6_Post_Spring()
     local hit = RCACHE["R_W6_Post_Spring"]
     if hit and hit.gen == GEN then return hit.v end
-    local v = R_W6_25_Seeds()
+    local v = ALL(HAS("jetrunbadge"), R_W6_25_Seeds())
     RCACHE["R_W6_Post_Spring"] = {gen = GEN, v = v}
     return v
 end
@@ -293,7 +323,7 @@ local function R_Pre_W4_Special()
     local hit = RCACHE["R_Pre_W4_Special"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(ALL(HAS("specialworldwonderseed", 6, 6), ANY(HAS("elephantfruit"), HAS("petalisleswonderseed", 10, 10), ALL(HAS("w5wonderseed", 11, 11), HAS("petalisleswonderseed", 12, 12)))), R_PI_Pre_W4()) end
+    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(HAS("specialworldwonderseed", 6, 6), R_PI_Pre_W2()) end
     RCACHE["R_Pre_W4_Special"] = {gen = GEN, v = v}
     return v
 end
@@ -301,7 +331,7 @@ local function R_Special_End()
     local hit = RCACHE["R_Special_End"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(ALL(HAS("elephantfruit"), HAS("w5wonderseed", 11, 11), HAS("specialworldwonderseed", 16, 16)), R_W6_Post_Spring()) end
+    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(ALL(ANY(HAS("elephantfruit"), HAS("allelephantpowerbadge")), HAS("w5wonderseed", 11, 11), HAS("specialworldwonderseed", 16, 16)), R_W6_Post_Spring()) end
     RCACHE["R_Special_End"] = {gen = GEN, v = v}
     return v
 end
@@ -309,19 +339,19 @@ local function R_Post_Badge()
     local hit = RCACHE["R_Post_Badge"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(ALL(HAS("w1wonderseed", 14, 14), HAS("w2wonderseed", 14, 14), HAS("w3wonderseed", 10, 10), HAS("w4wonderseed", 15, 15), HAS("w5wonderseed", 11, 11), HAS("w6wonderseed", 25, 25), HAS("petalisleswonderseed", 15, 15), HAS("specialworldwonderseed", 16, 16), smbw_royal(6)), R_Special_End()) end
+    if SMBW_OPEN() then v = ACCESS_NONE else v = ALL(ALL(HAS("w1wonderseed", 35, 35), HAS("w2wonderseed", 30, 30), HAS("w3wonderseed", 20, 20), HAS("w4wonderseed", 36, 36), HAS("w5wonderseed", 21, 21), HAS("w6wonderseed", 30, 30), HAS("petalisleswonderseed", 34, 34), HAS("specialworldwonderseed", 19, 19), smbw_royal(6)), R_Special_End()) end
     RCACHE["R_Post_Badge"] = {gen = GEN, v = v}
     return v
 end
 
 -- Per-AP-location access rules.
 local LOC = {}
-LOC["14887804500"] = function() return R_W1_Start() end
-LOC["14887804501"] = function() return R_W1_Start() end
-LOC["14887804502"] = function() return R_W1_Start() end
-LOC["14887804503"] = function() return R_W1_Start() end
-LOC["14887804504"] = function() return R_W1_Start() end
-LOC["14887804505"] = function() return R_W1_Start() end
+LOC["14887804500"] = function() if SMBW_OPEN() then return ALL(smbw_world_active(1)) end return R_W1_Start() end
+LOC["14887804501"] = function() if SMBW_OPEN() then return ALL(smbw_world_active(1)) end return R_W1_Start() end
+LOC["14887804502"] = function() if SMBW_OPEN() then return ALL(smbw_world_active(1)) end return R_W1_Start() end
+LOC["14887804503"] = function() if SMBW_OPEN() then return ALL(smbw_world_active(1)) end return R_W1_Start() end
+LOC["14887804504"] = function() if SMBW_OPEN() then return ALL(smbw_world_active(1)) end return R_W1_Start() end
+LOC["14887804505"] = function() if SMBW_OPEN() then return ALL(smbw_world_active(1)) end return R_W1_Start() end
 LOC["14887804506"] = function() return R_W1_Start() end
 LOC["14887804507"] = function() return R_W1_Start() end
 LOC["14887804508"] = function() return R_W1_Start() end
@@ -364,7 +394,7 @@ LOC["14887804544"] = function() return R_W1_3_Seeds() end
 LOC["14887804545"] = function() return R_W1_3_Seeds() end
 LOC["14887804546"] = function() return R_W1_3_Seeds() end
 LOC["14887804547"] = function() return R_W1_3_Seeds() end
-LOC["14887804548"] = function() return ALL(R_W1_10_Seeds(), HAS("autosupermushroombadge")) end
+LOC["14887804548"] = function() return R_W1_10_Seeds() end
 LOC["14887804549"] = function() return R_W1_10_Seeds() end
 LOC["14887804550"] = function() return R_W1_10_Seeds() end
 LOC["14887804551"] = function() return R_W1_10_Seeds() end
@@ -378,21 +408,21 @@ LOC["14887804558"] = function() return R_W1_10_Seeds() end
 LOC["14887804559"] = function() return R_W1_10_Seeds() end
 LOC["14887804560"] = function() return R_W1_10_Seeds() end
 LOC["14887804561"] = function() return R_W1_10_Seeds() end
-LOC["14887804562"] = function() return ALL(R_W1_10_Seeds(), HAS("elephantfruit")) end
+LOC["14887804562"] = function() return R_W1_10_Seeds() end
 LOC["14887804563"] = function() return R_W1_10_Seeds() end
 LOC["14887804564"] = function() return R_W1_10_Seeds() end
 LOC["14887804565"] = function() return R_W1_10_Seeds() end
 LOC["14887804566"] = function() return R_W1_10_Seeds() end
 LOC["14887804567"] = function() return R_W1_10_Seeds() end
-LOC["14887804568"] = function() return R_W1_10_Seeds() end
-LOC["14887804569"] = function() return R_W1_10_Seeds() end
-LOC["14887804570"] = function() return R_W1_10_Seeds() end
-LOC["14887804571"] = function() return R_W1_10_Seeds() end
-LOC["14887804572"] = function() return R_W1_10_Seeds() end
-LOC["14887804573"] = function() return R_W1_10_Seeds() end
-LOC["14887804574"] = function() return R_W1_10_Seeds() end
-LOC["14887804575"] = function() return R_W1_10_Seeds() end
-LOC["14887804576"] = function() return R_W1_10_Seeds() end
+LOC["14887804568"] = function() return ALL(R_W1_10_Seeds(), ANY(HAS("wall-climbjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804569"] = function() return ALL(R_W1_10_Seeds(), ANY(HAS("wall-climbjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804570"] = function() return ALL(R_W1_10_Seeds(), ANY(HAS("wall-climbjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804571"] = function() return ALL(R_W1_10_Seeds(), ANY(HAS("wall-climbjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804572"] = function() return ALL(R_W1_10_Seeds(), ANY(HAS("wall-climbjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804573"] = function() return ALL(R_W1_10_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804574"] = function() return ALL(R_W1_10_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804575"] = function() return ALL(R_W1_10_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804576"] = function() return ALL(R_W1_10_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
 LOC["14887804577"] = function() return R_W1_Post_Bulrush_Express() end
 LOC["14887804578"] = function() return R_W1_Post_Bulrush_Express() end
 LOC["14887804579"] = function() return R_W1_Post_Bulrush_Express() end
@@ -405,11 +435,11 @@ LOC["14887804585"] = function() return R_W1_Post_Bulrush_Express() end
 LOC["14887804586"] = function() return R_W1_Post_Bulrush_Express() end
 LOC["14887804587"] = function() return R_W1_Post_Bulrush_Express() end
 LOC["14887804588"] = function() return R_W1_Post_Bulrush_Express() end
-LOC["14887804589"] = function() return R_W1_Post_Jet_Run() end
-LOC["14887804590"] = function() return R_W1_Post_Jet_Run() end
-LOC["14887804591"] = function() return R_W1_Post_Jet_Run() end
-LOC["14887804592"] = function() return R_W1_Post_Jet_Run() end
-LOC["14887804593"] = function() return R_W1_Post_Jet_Run() end
+LOC["14887804589"] = function() return ALL(R_W1_Post_Jet_Run(), HAS("jetrunbadge")) end
+LOC["14887804590"] = function() return ALL(R_W1_Post_Jet_Run(), HAS("jetrunbadge")) end
+LOC["14887804591"] = function() return ALL(R_W1_Post_Jet_Run(), HAS("jetrunbadge")) end
+LOC["14887804592"] = function() return ALL(R_W1_Post_Jet_Run(), HAS("jetrunbadge")) end
+LOC["14887804593"] = function() return ALL(R_W1_Post_Jet_Run(), HAS("jetrunbadge")) end
 LOC["14887804594"] = function() return R_W1_Post_Jet_Run() end
 LOC["14887804595"] = function() return R_W1_Post_Jet_Run() end
 LOC["14887804596"] = function() return R_W1_Post_Jet_Run() end
@@ -419,7 +449,7 @@ LOC["14887804599"] = function() return R_W1_Post_Jet_Run() end
 LOC["14887804600"] = function() return R_W1_14_Seeds() end
 LOC["14887804601"] = function() return R_W1_14_Seeds() end
 LOC["14887804602"] = function() return R_W1_14_Seeds() end
-LOC["14887804603"] = function() return ALL(R_W1_14_Seeds(), HAS("elephantfruit")) end
+LOC["14887804603"] = function() return ALL(R_W1_14_Seeds(), ANY(HAS("elephantfruit"), HAS("allelephantpowerbadge"))) end
 LOC["14887804604"] = function() return R_W1_14_Seeds() end
 LOC["14887804605"] = function() return R_W1_3_Seeds() end
 LOC["14887804606"] = function() return R_PI_Pre_W2() end
@@ -429,11 +459,11 @@ LOC["14887804609"] = function() return R_PI_Pre_W2() end
 LOC["14887804610"] = function() return R_PI_Pre_W2() end
 LOC["14887804611"] = function() return R_PI_Pre_W2() end
 LOC["14887804612"] = function() return R_PI_Pre_W2() end
-LOC["14887804613"] = function() return R_PI_Pre_W2() end
-LOC["14887804614"] = function() return R_PI_Pre_W2() end
-LOC["14887804615"] = function() return R_PI_Pre_W2() end
-LOC["14887804616"] = function() return R_PI_Pre_W2() end
-LOC["14887804617"] = function() return R_PI_Pre_W2() end
+LOC["14887804613"] = function() return ALL(R_PI_Pre_W2(), HAS("dolphinkickbadge")) end
+LOC["14887804614"] = function() return ALL(R_PI_Pre_W2(), HAS("dolphinkickbadge")) end
+LOC["14887804615"] = function() return ALL(R_PI_Pre_W2(), HAS("dolphinkickbadge")) end
+LOC["14887804616"] = function() return ALL(R_PI_Pre_W2(), HAS("dolphinkickbadge")) end
+LOC["14887804617"] = function() return ALL(R_PI_Pre_W2(), HAS("dolphinkickbadge")) end
 LOC["14887804618"] = function() return R_PI_Pre_W2_2_Seeds() end
 LOC["14887804619"] = function() return R_PI_Pre_W2_2_Seeds() end
 LOC["14887804620"] = function() return R_PI_Pre_W2_2_Seeds() end
@@ -445,7 +475,7 @@ LOC["14887804625"] = function() return R_PI_Pre_W2_2_Seeds() end
 LOC["14887804626"] = function() return R_PI_Pre_W2_2_Seeds() end
 LOC["14887804627"] = function() return R_PI_Pre_W2_2_Seeds() end
 LOC["14887804628"] = function() return R_PI_Pre_W2_2_Seeds() end
-LOC["14887804629"] = function() return ALL(R_PI_Pre_W2_2_Seeds(), HAS("bubbleflower")) end
+LOC["14887804629"] = function() return ALL(R_PI_Pre_W2_2_Seeds(), ANY(HAS("BubbleFlower"), HAS("allbubbleflowerbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
 LOC["14887804630"] = function() return R_W2_Start() end
 LOC["14887804631"] = function() return R_W2_Start() end
 LOC["14887804632"] = function() return R_W2_Start() end
@@ -459,11 +489,11 @@ LOC["14887804639"] = function() return R_W2_Start() end
 LOC["14887804640"] = function() return R_W2_Start() end
 LOC["14887804641"] = function() return R_W2_Start() end
 LOC["14887804642"] = function() return R_W2_Start() end
-LOC["14887804643"] = function() return R_W2_Start() end
-LOC["14887804644"] = function() return R_W2_Start() end
-LOC["14887804645"] = function() return R_W2_Start() end
-LOC["14887804646"] = function() return R_W2_Start() end
-LOC["14887804647"] = function() return R_W2_Start() end
+LOC["14887804643"] = function() return ALL(R_W2_Start(), ANY(HAS("wall-climbjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804644"] = function() return ALL(R_W2_Start(), ANY(HAS("wall-climbjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804645"] = function() return ALL(R_W2_Start(), ANY(HAS("wall-climbjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804646"] = function() return ALL(R_W2_Start(), ANY(HAS("wall-climbjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804647"] = function() return ALL(R_W2_Start(), ANY(HAS("wall-climbjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
 LOC["14887804648"] = function() return R_W2_Start() end
 LOC["14887804649"] = function() return R_W2_Start() end
 LOC["14887804650"] = function() return R_W2_4_Seeds() end
@@ -485,15 +515,15 @@ LOC["14887804665"] = function() return R_W2_4_Seeds() end
 LOC["14887804666"] = function() return R_W2_4_Seeds() end
 LOC["14887804667"] = function() return R_W2_4_Seeds() end
 LOC["14887804668"] = function() return R_W2_4_Seeds() end
-LOC["14887804669"] = function() return R_W2_4_Seeds() end
-LOC["14887804670"] = function() return R_W2_4_Seeds() end
-LOC["14887804671"] = function() return R_W2_4_Seeds() end
-LOC["14887804672"] = function() return R_W2_4_Seeds() end
-LOC["14887804673"] = function() return R_W2_4_Seeds() end
-LOC["14887804674"] = function() return R_W2_4_Seeds() end
-LOC["14887804675"] = function() return R_W2_4_Seeds() end
-LOC["14887804676"] = function() return R_W2_4_Seeds() end
-LOC["14887804677"] = function() return R_W2_4_Seeds() end
+LOC["14887804669"] = function() return ALL(R_W2_4_Seeds(), ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804670"] = function() return ALL(R_W2_4_Seeds(), ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804671"] = function() return ALL(R_W2_4_Seeds(), ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804672"] = function() return ALL(R_W2_4_Seeds(), ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804673"] = function() return ALL(R_W2_4_Seeds(), ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804674"] = function() return ALL(R_W2_4_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804675"] = function() return ALL(R_W2_4_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804676"] = function() return ALL(R_W2_4_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804677"] = function() return ALL(R_W2_4_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
 LOC["14887804678"] = function() return R_W2_4_Seeds() end
 LOC["14887804679"] = function() return R_W2_Post_Jump() end
 LOC["14887804680"] = function() return R_W2_Post_Jump() end
@@ -526,8 +556,8 @@ LOC["14887804706"] = function() return R_W2_9_Seeds() end
 LOC["14887804707"] = function() return R_W2_9_Seeds() end
 LOC["14887804708"] = function() return R_W2_9_Seeds() end
 LOC["14887804709"] = function() return R_W2_9_Seeds() end
-LOC["14887804710"] = function() return ALL(R_W2_9_Seeds(), ANY(HAS("elephantfruit"), HAS("bubbleflower"))) end
-LOC["14887804711"] = function() return R_W2_9_Seeds() end
+LOC["14887804710"] = function() return R_W2_9_Seeds() end
+LOC["14887804711"] = function() return ALL(R_W2_9_Seeds(), ANY(HAS("elephantfruit"), HAS("allelephantpowerbadge"), HAS("BubbleFlower"), HAS("allbubbleflowerbadge"))) end
 LOC["14887804712"] = function() return R_W2_9_Seeds() end
 LOC["14887804713"] = function() return R_W2_9_Seeds() end
 LOC["14887804714"] = function() return R_W2_4_Seeds() end
@@ -541,11 +571,11 @@ LOC["14887804721"] = function() return R_PI_Pre_W2_2_Seeds() end
 LOC["14887804722"] = function() return R_W2_9_Seeds() end
 LOC["14887804723"] = function() return R_W2_Start() end
 LOC["14887804724"] = function() return R_PI_Pre_W2_2_Seeds() end
-LOC["14887804725"] = function() return R_PI_5_Seeds() end
-LOC["14887804726"] = function() return R_PI_5_Seeds() end
-LOC["14887804727"] = function() return R_PI_5_Seeds() end
-LOC["14887804728"] = function() return R_PI_5_Seeds() end
-LOC["14887804729"] = function() return R_PI_5_Seeds() end
+LOC["14887804725"] = function() return ALL(R_PI_5_Seeds(), HAS("dolphinkickbadge")) end
+LOC["14887804726"] = function() return ALL(R_PI_5_Seeds(), HAS("dolphinkickbadge")) end
+LOC["14887804727"] = function() return ALL(R_PI_5_Seeds(), HAS("dolphinkickbadge")) end
+LOC["14887804728"] = function() return ALL(R_PI_5_Seeds(), HAS("dolphinkickbadge")) end
+LOC["14887804729"] = function() return ALL(R_PI_5_Seeds(), HAS("dolphinkickbadge")) end
 LOC["14887804730"] = function() return R_PI_5_Seeds() end
 LOC["14887804731"] = function() return R_PI_5_Seeds() end
 LOC["14887804732"] = function() return R_PI_5_Seeds() end
@@ -565,16 +595,16 @@ LOC["14887804745"] = function() return R_W3_Start() end
 LOC["14887804746"] = function() return R_W3_Start() end
 LOC["14887804747"] = function() return R_W3_Start() end
 LOC["14887804748"] = function() return R_W3_Start() end
-LOC["14887804749"] = function() return ALL(R_W3_Start(), HAS("elephantfruit")) end
+LOC["14887804749"] = function() return ALL(R_W3_Start(), ANY(HAS("elephantfruit"), HAS("allelephantpowerbadge"))) end
 LOC["14887804750"] = function() return R_W3_Start() end
 LOC["14887804751"] = function() return R_W3_Start() end
 LOC["14887804752"] = function() return R_W3_Start() end
 LOC["14887804753"] = function() return R_W3_Start() end
-LOC["14887804754"] = function() return R_W3_4_Seeds() end
-LOC["14887804755"] = function() return R_W3_4_Seeds() end
-LOC["14887804756"] = function() return R_W3_4_Seeds() end
-LOC["14887804757"] = function() return R_W3_4_Seeds() end
-LOC["14887804758"] = function() return R_W3_4_Seeds() end
+LOC["14887804754"] = function() return ALL(R_W3_4_Seeds(), HAS("crouchinghighjumpbadge")) end
+LOC["14887804755"] = function() return ALL(R_W3_4_Seeds(), HAS("crouchinghighjumpbadge")) end
+LOC["14887804756"] = function() return ALL(R_W3_4_Seeds(), HAS("crouchinghighjumpbadge")) end
+LOC["14887804757"] = function() return ALL(R_W3_4_Seeds(), HAS("crouchinghighjumpbadge")) end
+LOC["14887804758"] = function() return ALL(R_W3_4_Seeds(), HAS("crouchinghighjumpbadge")) end
 LOC["14887804759"] = function() return R_W3_4_Seeds() end
 LOC["14887804760"] = function() return R_W3_4_Seeds() end
 LOC["14887804761"] = function() return R_W3_4_Seeds() end
@@ -615,7 +645,7 @@ LOC["14887804795"] = function() return R_PI_8_Seeds() end
 LOC["14887804796"] = function() return R_PI_8_Seeds() end
 LOC["14887804797"] = function() return R_PI_8_Seeds() end
 LOC["14887804798"] = function() return R_PI_8_Seeds() end
-LOC["14887804799"] = function() return R_PI_8_Seeds() end
+LOC["14887804799"] = function() return ALL(R_PI_8_Seeds(), ANY(HAS("DrillMushroom"), HAS("alldrillpowerbadge"), HAS("redyoshi"))) end
 LOC["14887804800"] = function() return R_PI_8_Seeds() end
 LOC["14887804801"] = function() return R_W4_Start() end
 LOC["14887804802"] = function() return R_W4_Start() end
@@ -673,27 +703,27 @@ LOC["14887804853"] = function() return R_W4_Start() end
 LOC["14887804854"] = function() return R_W4_Start() end
 LOC["14887804855"] = function() return R_W4_Start() end
 LOC["14887804856"] = function() return R_W4_Start() end
-LOC["14887804857"] = function() return R_W4_Start() end
+LOC["14887804857"] = function() return ALL(R_W4_Start(), HAS("parachutecapbadge")) end
 LOC["14887804858"] = function() return R_W4_Start() end
-LOC["14887804859"] = function() return R_W4_Start() end
-LOC["14887804860"] = function() return R_W4_Start() end
-LOC["14887804861"] = function() return R_W4_Start() end
-LOC["14887804862"] = function() return R_W4_Start() end
-LOC["14887804863"] = function() return R_W4_Start() end
-LOC["14887804864"] = function() return R_W4_Start() end
-LOC["14887804865"] = function() return R_W4_Start() end
-LOC["14887804866"] = function() return R_W4_Start() end
+LOC["14887804859"] = function() return ALL(R_W4_Start(), HAS("parachutecapbadge")) end
+LOC["14887804860"] = function() return ALL(R_W4_Start(), HAS("parachutecapbadge")) end
+LOC["14887804861"] = function() return ALL(R_W4_Start(), HAS("parachutecapbadge")) end
+LOC["14887804862"] = function() return ALL(R_W4_Start(), HAS("crouchinghighjumpbadge")) end
+LOC["14887804863"] = function() return ALL(R_W4_Start(), HAS("crouchinghighjumpbadge")) end
+LOC["14887804864"] = function() return ALL(R_W4_Start(), HAS("crouchinghighjumpbadge")) end
+LOC["14887804865"] = function() return ALL(R_W4_Start(), HAS("crouchinghighjumpbadge")) end
+LOC["14887804866"] = function() return ALL(R_W4_Start(), HAS("crouchinghighjumpbadge")) end
 LOC["14887804867"] = function() return R_W4_Start() end
 LOC["14887804868"] = function() return R_W4_Start() end
 LOC["14887804869"] = function() return R_W4_Start() end
 LOC["14887804870"] = function() return R_W4_Start() end
 LOC["14887804871"] = function() return R_W4_Start() end
-LOC["14887804872"] = function() return R_W4_Start() end
-LOC["14887804873"] = function() return R_W4_Start() end
-LOC["14887804874"] = function() return R_W4_Start() end
-LOC["14887804875"] = function() return R_W4_Start() end
+LOC["14887804872"] = function() return ALL(R_W4_Start(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804873"] = function() return ALL(R_W4_Start(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804874"] = function() return ALL(R_W4_Start(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804875"] = function() return ALL(R_W4_Start(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
 LOC["14887804876"] = function() return R_W4_Start() end
-LOC["14887804877"] = function() return ALL(R_W4_Start(), HAS("drillmushroom")) end
+LOC["14887804877"] = function() return ALL(R_W4_Start(), ANY(HAS("DrillMushroom"), HAS("alldrillpowerbadge"))) end
 LOC["14887804878"] = function() return R_W4_Start() end
 LOC["14887804879"] = function() return R_W4_Start() end
 LOC["14887804880"] = function() return R_W4_Start() end
@@ -733,16 +763,16 @@ LOC["14887804913"] = function() return R_PI_8_Seeds() end
 LOC["14887804914"] = function() return R_PI_8_Seeds() end
 LOC["14887804915"] = function() return R_PI_8_Seeds() end
 LOC["14887804916"] = function() return R_PI_8_Seeds() end
-LOC["14887804917"] = function() return R_PI_8_Seeds() end
-LOC["14887804918"] = function() return R_PI_8_Seeds() end
-LOC["14887804919"] = function() return R_PI_8_Seeds() end
-LOC["14887804920"] = function() return R_PI_8_Seeds() end
-LOC["14887804921"] = function() return R_PI_8_Seeds() end
+LOC["14887804917"] = function() return ALL(R_PI_8_Seeds(), ANY(HAS("boostingspinjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804918"] = function() return ALL(R_PI_8_Seeds(), ANY(HAS("boostingspinjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804919"] = function() return ALL(R_PI_8_Seeds(), ANY(HAS("boostingspinjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804920"] = function() return ALL(R_PI_8_Seeds(), ANY(HAS("boostingspinjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887804921"] = function() return ALL(R_PI_8_Seeds(), ANY(HAS("boostingspinjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
 LOC["14887804922"] = function() return R_PI_8_Seeds() end
-LOC["14887804923"] = function() return R_PI_8_Seeds() end
-LOC["14887804924"] = function() return R_PI_8_Seeds() end
-LOC["14887804925"] = function() return R_PI_8_Seeds() end
-LOC["14887804926"] = function() return R_PI_8_Seeds() end
+LOC["14887804923"] = function() return ALL(R_PI_8_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804924"] = function() return ALL(R_PI_8_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804925"] = function() return ALL(R_PI_8_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804926"] = function() return ALL(R_PI_8_Seeds(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
 LOC["14887804927"] = function() return R_PI_8_Seeds() end
 LOC["14887804928"] = function() return R_PI_8_Seeds() end
 LOC["14887804929"] = function() return R_PI_8_Seeds() end
@@ -791,15 +821,15 @@ LOC["14887804971"] = function() return R_W5_Post_Wubba() end
 LOC["14887804972"] = function() return R_W5_Post_Wubba() end
 LOC["14887804973"] = function() return R_W5_Post_Wubba() end
 LOC["14887804974"] = function() return R_W5_Post_Wubba() end
-LOC["14887804975"] = function() return R_W5_Post_Wubba() end
-LOC["14887804976"] = function() return R_W5_Post_Wubba() end
-LOC["14887804977"] = function() return R_W5_Post_Wubba() end
-LOC["14887804978"] = function() return R_W5_Post_Wubba() end
-LOC["14887804979"] = function() return R_W5_Post_Wubba() end
-LOC["14887804980"] = function() return R_W5_Post_Swaying() end
-LOC["14887804981"] = function() return R_W5_Post_Swaying() end
-LOC["14887804982"] = function() return R_W5_Post_Swaying() end
-LOC["14887804983"] = function() return R_W5_Post_Swaying() end
+LOC["14887804975"] = function() return ALL(R_W5_Post_Wubba(), HAS("grapplingvinebadge")) end
+LOC["14887804976"] = function() return ALL(R_W5_Post_Wubba(), HAS("grapplingvinebadge")) end
+LOC["14887804977"] = function() return ALL(R_W5_Post_Wubba(), HAS("grapplingvinebadge")) end
+LOC["14887804978"] = function() return ALL(R_W5_Post_Wubba(), HAS("grapplingvinebadge")) end
+LOC["14887804979"] = function() return ALL(R_W5_Post_Wubba(), HAS("grapplingvinebadge")) end
+LOC["14887804980"] = function() return ALL(R_W5_Post_Swaying(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804981"] = function() return ALL(R_W5_Post_Swaying(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804982"] = function() return ALL(R_W5_Post_Swaying(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887804983"] = function() return ALL(R_W5_Post_Swaying(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
 LOC["14887804984"] = function() return R_W5_11_Seeds() end
 LOC["14887804985"] = function() return R_W5_11_Seeds() end
 LOC["14887804986"] = function() return R_W5_11_Seeds() end
@@ -818,18 +848,18 @@ LOC["14887804998"] = function() return R_W5_11_Seeds() end
 LOC["14887804999"] = function() return R_W5_Start() end
 LOC["14887805000"] = function() return R_W6_Start() end
 LOC["14887805001"] = function() return R_W6_Start() end
-LOC["14887805002"] = function() return ALL(R_W6_Start(), HAS("drillmushroom")) end
+LOC["14887805002"] = function() return ALL(R_W6_Start(), ANY(HAS("DrillMushroom"), HAS("alldrillpowerbadge"))) end
 LOC["14887805003"] = function() return R_W6_Start() end
 LOC["14887805004"] = function() return R_W6_Start() end
 LOC["14887805005"] = function() return R_W6_Start() end
-LOC["14887805006"] = function() return ALL(R_W6_Start(), HAS("drillmushroom")) end
+LOC["14887805006"] = function() return ALL(R_W6_Start(), ANY(HAS("DrillMushroom"), HAS("alldrillpowerbadge"))) end
 LOC["14887805007"] = function() return R_W6_Start() end
 LOC["14887805008"] = function() return R_W6_Start() end
 LOC["14887805009"] = function() return R_W6_Start() end
 LOC["14887805010"] = function() return R_W6_Start() end
 LOC["14887805011"] = function() return R_W6_Start() end
 LOC["14887805012"] = function() return R_W6_Start() end
-LOC["14887805013"] = function() return ALL(R_W6_Start(), HAS("drillmushroom")) end
+LOC["14887805013"] = function() return ALL(R_W6_Start(), ANY(HAS("DrillMushroom"), HAS("alldrillpowerbadge"))) end
 LOC["14887805014"] = function() return R_W6_Start() end
 LOC["14887805015"] = function() return R_W6_Start() end
 LOC["14887805016"] = function() return R_W6_Start() end
@@ -846,7 +876,7 @@ LOC["14887805026"] = function() return R_W6_Start() end
 LOC["14887805027"] = function() return R_W6_Start() end
 LOC["14887805028"] = function() return R_W6_Start() end
 LOC["14887805029"] = function() return R_W6_Start() end
-LOC["14887805030"] = function() return ALL(R_W6_Start(), HAS("elephantfruit")) end
+LOC["14887805030"] = function() return R_W6_Start() end
 LOC["14887805031"] = function() return R_W6_Start() end
 LOC["14887805032"] = function() return R_W6_Start() end
 LOC["14887805033"] = function() return R_W6_Start() end
@@ -860,51 +890,51 @@ LOC["14887805040"] = function() return R_W6_Start() end
 LOC["14887805041"] = function() return R_W6_Start() end
 LOC["14887805042"] = function() return R_W6_Start() end
 LOC["14887805043"] = function() return R_W6_Start() end
-LOC["14887805044"] = function() return R_W6_Start() end
-LOC["14887805045"] = function() return R_W6_Start() end
-LOC["14887805046"] = function() return R_W6_Start() end
-LOC["14887805047"] = function() return R_W6_Start() end
-LOC["14887805048"] = function() return R_W6_Start() end
-LOC["14887805049"] = function() return ALL(R_W6_Start(), HAS("drillmushroom")) end
-LOC["14887805050"] = function() return ALL(R_W6_Start(), HAS("drillmushroom")) end
-LOC["14887805051"] = function() return ALL(R_W6_Start(), HAS("drillmushroom")) end
-LOC["14887805052"] = function() return ALL(R_W6_Start(), HAS("drillmushroom")) end
-LOC["14887805053"] = function() return ALL(R_W6_Start(), HAS("drillmushroom")) end
-LOC["14887805054"] = function() return R_W6_Start() end
-LOC["14887805055"] = function() return R_W6_Start() end
-LOC["14887805056"] = function() return R_W6_Start() end
-LOC["14887805057"] = function() return R_W6_Start() end
-LOC["14887805058"] = function() return R_W6_Start() end
-LOC["14887805059"] = function() return R_W6_Start() end
-LOC["14887805060"] = function() return R_W6_Start() end
-LOC["14887805061"] = function() return R_W6_Start() end
-LOC["14887805062"] = function() return R_W6_Start() end
-LOC["14887805063"] = function() return ALL(R_W6_Start(), ALL(HAS("elephantfruit"), HAS("bubbleflower"), HAS("drillmushroom"))) end
-LOC["14887805064"] = function() return ALL(R_W6_Start(), HAS("elephantfruit")) end
+LOC["14887805044"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887805045"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887805046"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887805047"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887805048"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887805049"] = function() return ALL(R_W6_25_Seeds(), ALL(ANY(HAS("boostingspinjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi")), ANY(HAS("DrillMushroom"), HAS("alldrillpowerbadge")))) end
+LOC["14887805050"] = function() return ALL(R_W6_25_Seeds(), ALL(ANY(HAS("boostingspinjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi")), ANY(HAS("DrillMushroom"), HAS("alldrillpowerbadge")))) end
+LOC["14887805051"] = function() return ALL(R_W6_25_Seeds(), ALL(ANY(HAS("boostingspinjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi")), ANY(HAS("DrillMushroom"), HAS("alldrillpowerbadge")))) end
+LOC["14887805052"] = function() return ALL(R_W6_25_Seeds(), ALL(ANY(HAS("boostingspinjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi")), ANY(HAS("DrillMushroom"), HAS("alldrillpowerbadge")))) end
+LOC["14887805053"] = function() return ALL(R_W6_25_Seeds(), ALL(ANY(HAS("boostingspinjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi")), ANY(HAS("DrillMushroom"), HAS("alldrillpowerbadge")))) end
+LOC["14887805054"] = function() return ALL(R_W6_25_Seeds(), HAS("grapplingvinebadge")) end
+LOC["14887805055"] = function() return ALL(R_W6_25_Seeds(), HAS("grapplingvinebadge")) end
+LOC["14887805056"] = function() return ALL(R_W6_25_Seeds(), HAS("grapplingvinebadge")) end
+LOC["14887805057"] = function() return ALL(R_W6_25_Seeds(), HAS("grapplingvinebadge")) end
+LOC["14887805058"] = function() return ALL(R_W6_25_Seeds(), HAS("grapplingvinebadge")) end
+LOC["14887805059"] = function() return ALL(R_W6_Start(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887805060"] = function() return ALL(R_W6_Start(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887805061"] = function() return ALL(R_W6_Start(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887805062"] = function() return ALL(R_W6_Start(), smbw_cat(1, "elephantfruit", "fireflower", "BubbleFlower", "DrillMushroom", "allelephantpowerbadge", "allfirepowerbadge", "allbubbleflowerbadge", "alldrillpowerbadge")) end
+LOC["14887805063"] = function() return ALL(R_W6_Start(), ALL(ANY(HAS("elephantfruit"), HAS("allelephantpowerbadge")), ANY(HAS("BubbleFlower"), HAS("allbubbleflowerbadge")), ANY(HAS("DrillMushroom"), HAS("alldrillpowerbadge")))) end
+LOC["14887805064"] = function() return ALL(R_W6_Start(), ANY(HAS("elephantfruit"), HAS("allelephantpowerbadge"))) end
 LOC["14887805065"] = function() return R_W6_Start() end
 LOC["14887805066"] = function() return R_W6_Start() end
 LOC["14887805067"] = function() return R_W6_Start() end
 LOC["14887805068"] = function() return R_W6_Start() end
-LOC["14887805069"] = function() return R_W6_25_Seeds() end
-LOC["14887805070"] = function() return R_W6_25_Seeds() end
-LOC["14887805071"] = function() return R_W6_25_Seeds() end
-LOC["14887805072"] = function() return R_W6_25_Seeds() end
-LOC["14887805073"] = function() return R_W6_25_Seeds() end
-LOC["14887805074"] = function() return R_W6_25_Seeds() end
-LOC["14887805075"] = function() return R_W6_25_Seeds() end
-LOC["14887805076"] = function() return R_W6_25_Seeds() end
-LOC["14887805077"] = function() return R_W6_25_Seeds() end
-LOC["14887805078"] = function() return R_W6_25_Seeds() end
+LOC["14887805069"] = function() return R_W6_15_Seeds() end
+LOC["14887805070"] = function() return R_W6_15_Seeds() end
+LOC["14887805071"] = function() return R_W6_15_Seeds() end
+LOC["14887805072"] = function() return R_W6_15_Seeds() end
+LOC["14887805073"] = function() return R_W6_15_Seeds() end
+LOC["14887805074"] = function() return ALL(R_W6_25_Seeds(), HAS("jetrunbadge")) end
+LOC["14887805075"] = function() return ALL(R_W6_25_Seeds(), HAS("jetrunbadge")) end
+LOC["14887805076"] = function() return ALL(R_W6_25_Seeds(), HAS("jetrunbadge")) end
+LOC["14887805077"] = function() return ALL(R_W6_25_Seeds(), HAS("jetrunbadge")) end
+LOC["14887805078"] = function() return ALL(R_W6_25_Seeds(), HAS("jetrunbadge")) end
 LOC["14887805079"] = function() return R_W6_25_Seeds() end
 LOC["14887805080"] = function() return R_W6_25_Seeds() end
 LOC["14887805081"] = function() return R_W6_25_Seeds() end
 LOC["14887805082"] = function() return R_W6_25_Seeds() end
 LOC["14887805083"] = function() return R_W6_25_Seeds() end
-LOC["14887805084"] = function() return R_W6_25_Seeds() end
-LOC["14887805085"] = function() return R_W6_25_Seeds() end
-LOC["14887805086"] = function() return R_W6_25_Seeds() end
-LOC["14887805087"] = function() return R_W6_25_Seeds() end
-LOC["14887805088"] = function() return R_W6_25_Seeds() end
+LOC["14887805084"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("springfeetbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887805085"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("springfeetbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887805086"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("springfeetbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887805087"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("springfeetbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
+LOC["14887805088"] = function() return ALL(R_W6_25_Seeds(), ANY(HAS("springfeetbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"))) end
 LOC["14887805089"] = function() return R_W6_Post_Spring() end
 LOC["14887805090"] = function() return R_W6_Post_Spring() end
 LOC["14887805091"] = function() return R_W6_Post_Spring() end
@@ -952,11 +982,11 @@ LOC["14887805132"] = function() return R_Special_End() end
 LOC["14887805133"] = function() return R_Special_End() end
 LOC["14887805134"] = function() return R_Special_End() end
 LOC["14887805135"] = function() return R_Special_End() end
-LOC["14887805136"] = function() return R_Post_Badge() end
-LOC["14887805137"] = function() return R_Post_Badge() end
-LOC["14887805138"] = function() return R_Post_Badge() end
-LOC["14887805139"] = function() return R_Post_Badge() end
-LOC["14887805140"] = function() return R_Post_Badge() end
+LOC["14887805136"] = function() return ALL(R_Post_Badge(), ALL(HAS("parachutecapbadge"), HAS("crouchinghighjumpbadge"), HAS("wall-climbjumpbadge"), HAS("grapplingvinebadge"), ANY(ALL(smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"), HAS("jetrunbadge"), HAS("springfeetbadge")), ALL(HAS("BubbleFlower"), HAS("dolphinkickbadge"), HAS("boostingspinjumpbadge")), ALL(HAS("floatinghighjumpbadge"), HAS("dolphinkickbadge"), HAS("springfeetbadge"), HAS("jetrunbadge"), HAS("boostingspinjumpbadge"))))) end
+LOC["14887805137"] = function() return ALL(R_Post_Badge(), ALL(HAS("parachutecapbadge"), HAS("crouchinghighjumpbadge"), HAS("wall-climbjumpbadge"), HAS("grapplingvinebadge"), ANY(ALL(smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"), HAS("jetrunbadge"), HAS("springfeetbadge")), ALL(HAS("BubbleFlower"), HAS("dolphinkickbadge"), HAS("boostingspinjumpbadge")), ALL(HAS("floatinghighjumpbadge"), HAS("dolphinkickbadge"), HAS("springfeetbadge"), HAS("jetrunbadge"), HAS("boostingspinjumpbadge"))))) end
+LOC["14887805138"] = function() return ALL(R_Post_Badge(), ALL(HAS("parachutecapbadge"), HAS("crouchinghighjumpbadge"), HAS("wall-climbjumpbadge"), HAS("grapplingvinebadge"), ANY(ALL(smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"), HAS("jetrunbadge"), HAS("springfeetbadge")), ALL(HAS("BubbleFlower"), HAS("dolphinkickbadge"), HAS("boostingspinjumpbadge")), ALL(HAS("floatinghighjumpbadge"), HAS("dolphinkickbadge"), HAS("springfeetbadge"), HAS("jetrunbadge"), HAS("boostingspinjumpbadge"))))) end
+LOC["14887805139"] = function() return ALL(R_Post_Badge(), ALL(HAS("parachutecapbadge"), HAS("crouchinghighjumpbadge"), HAS("wall-climbjumpbadge"), HAS("grapplingvinebadge"), ANY(ALL(smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"), HAS("jetrunbadge"), HAS("springfeetbadge")), ALL(HAS("BubbleFlower"), HAS("dolphinkickbadge"), HAS("boostingspinjumpbadge")), ALL(HAS("floatinghighjumpbadge"), HAS("dolphinkickbadge"), HAS("springfeetbadge"), HAS("jetrunbadge"), HAS("boostingspinjumpbadge"))))) end
+LOC["14887805140"] = function() return ALL(R_Post_Badge(), ALL(HAS("parachutecapbadge"), HAS("crouchinghighjumpbadge"), HAS("wall-climbjumpbadge"), HAS("grapplingvinebadge"), ANY(ALL(smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi"), HAS("jetrunbadge"), HAS("springfeetbadge")), ALL(HAS("BubbleFlower"), HAS("dolphinkickbadge"), HAS("boostingspinjumpbadge")), ALL(HAS("floatinghighjumpbadge"), HAS("dolphinkickbadge"), HAS("springfeetbadge"), HAS("jetrunbadge"), HAS("boostingspinjumpbadge"))))) end
 LOC["14887805141"] = function() return ALL(R_Post_Badge(), HAS("soundoff?badge")) end
 LOC["14887805142"] = function() return R_W5_11_Seeds() end
 LOC["14887805143"] = function() return R_PI_8_Seeds() end
