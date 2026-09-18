@@ -160,7 +160,7 @@ end
 local function R_W2_Post_Jump()
     local hit = RCACHE["R_W2_Post_Jump"]
     if hit and hit.gen == GEN then return hit.v end
-    local v = ALL(ANY(HAS("floatinghighjumpbadge"), smbw_cat(1, "greenyoshi", "redyoshi", "light-blueyoshi", "yellowyoshi")), R_W2_4_Seeds())
+    local v = R_W2_4_Seeds()
     RCACHE["R_W2_Post_Jump"] = {gen = GEN, v = v}
     return v
 end
@@ -365,7 +365,7 @@ LOC["14887804515"] = function() return R_W1_Start() end
 LOC["14887804516"] = function() return R_W1_Start() end
 LOC["14887804517"] = function() return R_W1_Start() end
 LOC["14887804518"] = function() return R_W1_Start() end
-LOC["14887804519"] = function() return ALL(R_W1_3_Seeds(), HAS("parachutecapbadge")) end
+LOC["14887804519"] = function() return R_W1_3_Seeds() end
 LOC["14887804520"] = function() return R_W1_3_Seeds() end
 LOC["14887804521"] = function() return R_W1_3_Seeds() end
 LOC["14887804522"] = function() return R_W1_3_Seeds() end
