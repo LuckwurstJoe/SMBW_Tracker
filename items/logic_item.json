@@ -1,5 +1,12 @@
 [
     {
+        "name": "Bowser'Scastleunlock (logic)",
+        "type": "toggle",
+        "allow_disabled": true,
+        "img": "images/various/fake.png",
+        "codes": "bowser'scastleunlock"
+    },
+    {
         "name": "W1Unlock (logic)",
         "type": "toggle",
         "allow_disabled": true,

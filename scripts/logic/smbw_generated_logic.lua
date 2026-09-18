@@ -32,6 +32,19 @@ function smbw_world_unlocked(n)
     if not code then return true end
     return Tracker:ProviderCountForCode(code) > 0
 end
+-- Bowser's Castle region in open-world.  Seeds with open_world_castle_unlock
+-- gate it like a world (its Unlock item when open_world_unlock_items is on);
+-- older seeds keep the whole castle behind the palace count.
+function smbw_castle_open()
+    if not (SLOT_DATA and (SLOT_DATA.open_world_castle_unlock == 1
+            or SLOT_DATA.open_world_castle_unlock == true)) then
+        return smbw_open_palaces()
+    end
+    if not (SLOT_DATA.open_world_unlock_items == 1
+            or SLOT_DATA.open_world_unlock_items == true) then return ACCESS_NORMAL end
+    if Tracker:ProviderCountForCode("bowser'scastleunlock") > 0 then return ACCESS_NORMAL end
+    return ACCESS_NONE
+end
 -- Bowser gate in open-world: enough active-world Royal Seeds (palaces) cleared.
 function smbw_open_palaces()
     local active = (SLOT_DATA and SLOT_DATA.open_world_active) or {}
@@ -315,7 +328,7 @@ local function R_World_Bowser()
     local hit = RCACHE["R_World_Bowser"]
     if hit and hit.gen == GEN then return hit.v end
     local v
-    if SMBW_OPEN() then v = smbw_open_palaces() else v = ALL(smbw_royal(6), R_W6_Start()) end
+    if SMBW_OPEN() then v = smbw_castle_open() else v = ALL(smbw_royal(6), R_W6_Start()) end
     RCACHE["R_World_Bowser"] = {gen = GEN, v = v}
     return v
 end
@@ -941,31 +954,31 @@ LOC["14887805091"] = function() return R_W6_Post_Spring() end
 LOC["14887805092"] = function() return R_W6_Post_Spring() end
 LOC["14887805093"] = function() return R_W6_Post_Spring() end
 LOC["14887805094"] = function() return R_W6_Post_Spring() end
-LOC["14887805095"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805096"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805097"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805098"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805099"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805100"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805101"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805102"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805103"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805104"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805105"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805106"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805107"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805108"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805109"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805110"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805111"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805112"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805113"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805114"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805115"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805116"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805117"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805118"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
-LOC["14887805119"] = function() return R_World_Bowser() end
+LOC["14887805095"] = function() return R_World_Bowser() end
+LOC["14887805096"] = function() return R_World_Bowser() end
+LOC["14887805097"] = function() return R_World_Bowser() end
+LOC["14887805098"] = function() return R_World_Bowser() end
+LOC["14887805099"] = function() return R_World_Bowser() end
+LOC["14887805100"] = function() return R_World_Bowser() end
+LOC["14887805101"] = function() return R_World_Bowser() end
+LOC["14887805102"] = function() return R_World_Bowser() end
+LOC["14887805103"] = function() return R_World_Bowser() end
+LOC["14887805104"] = function() return R_World_Bowser() end
+LOC["14887805105"] = function() return R_World_Bowser() end
+LOC["14887805106"] = function() return R_World_Bowser() end
+LOC["14887805107"] = function() return R_World_Bowser() end
+LOC["14887805108"] = function() return R_World_Bowser() end
+LOC["14887805109"] = function() return R_World_Bowser() end
+LOC["14887805110"] = function() return R_World_Bowser() end
+LOC["14887805111"] = function() return R_World_Bowser() end
+LOC["14887805112"] = function() return R_World_Bowser() end
+LOC["14887805113"] = function() return R_World_Bowser() end
+LOC["14887805114"] = function() return R_World_Bowser() end
+LOC["14887805115"] = function() return R_World_Bowser() end
+LOC["14887805116"] = function() return R_World_Bowser() end
+LOC["14887805117"] = function() return R_World_Bowser() end
+LOC["14887805118"] = function() return R_World_Bowser() end
+LOC["14887805119"] = function() if SMBW_OPEN() then return ALL(R_World_Bowser(), smbw_open_palaces()) end return R_World_Bowser() end
 LOC["14887805120"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
 LOC["14887805121"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
 LOC["14887805122"] = function() if SMBW_OPEN() then return ACCESS_NONE end return R_World_Bowser() end
