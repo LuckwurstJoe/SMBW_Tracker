@@ -63,4 +63,5 @@ ITEM_MAPPING = {
 	[14887804059] = {{"w4unlock", "toggle"}},
 	[14887804060] = {{"w5unlock", "toggle"}},
 	[14887804061] = {{"w6unlock", "toggle"}},
+	[14887804062] = {{"bowser'scastleunlock", "toggle"}},
 }
