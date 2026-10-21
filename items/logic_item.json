@@ -1,58 +1,51 @@
 [
     {
-        "name": "Bluetoad (logic)",
+        "name": "Bowser'Scastleunlock (logic)",
         "type": "toggle",
         "allow_disabled": true,
         "img": "images/various/fake.png",
-        "codes": "bluetoad"
+        "codes": "bowser'scastleunlock"
     },
     {
-        "name": "Daisy (logic)",
+        "name": "W1Unlock (logic)",
         "type": "toggle",
         "allow_disabled": true,
         "img": "images/various/fake.png",
-        "codes": "daisy"
+        "codes": "w1unlock"
     },
     {
-        "name": "Drillmushroom (logic)",
+        "name": "W2Unlock (logic)",
         "type": "toggle",
         "allow_disabled": true,
         "img": "images/various/fake.png",
-        "codes": "drillmushroom"
+        "codes": "w2unlock"
     },
     {
-        "name": "Rbutton (logic)",
-        "type": "consumable",
-        "allow_disabled": true,
-        "img": "images/various/fake.png",
-        "codes": "rbutton"
-    },
-    {
-        "name": "Toadette (logic)",
+        "name": "W3Unlock (logic)",
         "type": "toggle",
         "allow_disabled": true,
         "img": "images/various/fake.png",
-        "codes": "toadette"
+        "codes": "w3unlock"
     },
     {
-        "name": "Up (logic)",
-        "type": "consumable",
-        "allow_disabled": true,
-        "img": "images/various/fake.png",
-        "codes": "up"
-    },
-    {
-        "name": "Ybutton (logic)",
-        "type": "consumable",
-        "allow_disabled": true,
-        "img": "images/various/fake.png",
-        "codes": "ybutton"
-    },
-    {
-        "name": "Yellowtoad (logic)",
+        "name": "W4Unlock (logic)",
         "type": "toggle",
         "allow_disabled": true,
         "img": "images/various/fake.png",
-        "codes": "yellowtoad"
+        "codes": "w4unlock"
+    },
+    {
+        "name": "W5Unlock (logic)",
+        "type": "toggle",
+        "allow_disabled": true,
+        "img": "images/various/fake.png",
+        "codes": "w5unlock"
+    },
+    {
+        "name": "W6Unlock (logic)",
+        "type": "toggle",
+        "allow_disabled": true,
+        "img": "images/various/fake.png",
+        "codes": "w6unlock"
     }
 ]
