@@ -56,7 +56,7 @@
         "codes": "Star"
     },
 	{
-        "name": "Elepfant Fruit",
+        "name": "Elephant Fruit",
         "type": "toggle",
         "allow_disabled": true,
         "img": "images/charspower/ElephantFruit.png",
